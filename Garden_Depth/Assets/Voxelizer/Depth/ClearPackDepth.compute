@@ -1,0 +1,17 @@
+#pragma kernel Clear
+
+RWTexture3D<float4> VoxelColorVolume;
+
+cbuffer Params
+{
+    uint3 VolumeResolution;
+};
+
+[numthreads(8,8,4)]
+void Clear(uint3 id : SV_DispatchThreadID)
+{
+    if (any(id >= VolumeResolution))
+        return;
+
+    VoxelColorVolume[id] = float4(0,0,0,0);
+}

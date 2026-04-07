@@ -1,0 +1,92 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1880039133230142462
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1880039133230142460}
+  - component: {fileID: 1880039133230142435}
+  - component: {fileID: 1880039133230142434}
+  m_Layer: 0
+  m_Name: Voxelizer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1880039133230142460
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880039133230142462}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1880039133230142435
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880039133230142462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ea25674f9c4e4a4192f8633ba48ebbc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sliceAxis: 1
+  volumeCenter: {x: 0, y: 0, z: 0}
+  volumeSize: {x: 10, y: 8.26, z: 10}
+  nx: 256
+  ny: 256
+  nz: 192
+  interlaced: 1
+  sweepUpOnly: 1
+  sweepDownOnly: 0
+  rebuildEveryFrame: 0
+  projectorX: 912
+  projectorY: 1140
+  voxelSliceDebugMat: {fileID: 2100000, guid: 877a0b25ce46bbd42a900368d7e4cf0b, type: 2}
+  packedRgbDebugMat: {fileID: 2100000, guid: dfc8ae3fddd065345a6465e9413cd7d3, type: 2}
+  voxelColorCaptureShader: {fileID: 4800000, guid: 68aff8d140adeda4aa0e4f80d27391ac, type: 3}
+  packBitDebugMat: {fileID: 2100000, guid: 936c3ba0b9de93a48acddd2ad2091b19, type: 2}
+  debugChannel: 0
+  debugBit: 0
+  debugSlice01: 0.181
+  autoSweepDebugSlice: 0
+  debugSliceSpeed: 0.2
+  voxelizeCompute: {fileID: 7200000, guid: 42570177b8cfc5a4c8394191c050bf1f, type: 3}
+  clearVoxelCompute: {fileID: 7200000, guid: eb9614ca1c36c384481819e807e6bb56, type: 3}
+  packCompute: {fileID: 7200000, guid: bfe6474f0beb17646a0ed9feeef1b25f, type: 3}
+  projectorPackedMat: {fileID: 2100000, guid: 0445ece36eed3874a8e7586e7033a951, type: 2}
+  syncCamera: {fileID: 0}
+  squareClock: {fileID: 0}
+  logPackInfo: 0
+  displayedPack: 0
+  nextPack: 0
+  displayedSliceBase: 0
+  isMechanicalUp: 0
+  autoFindVoxelizableObjects: 1
+--- !u!114 &1880039133230142434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880039133230142462}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8deb2e34647326f41b634492e980ba28, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

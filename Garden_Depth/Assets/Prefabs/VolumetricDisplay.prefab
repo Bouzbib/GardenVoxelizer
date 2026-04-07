@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7002533114423015693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7002533114423015694}
+  - component: {fileID: 7002533114423015689}
+  - component: {fileID: 7002533114423015688}
+  - component: {fileID: 7002533114423015690}
+  m_Layer: 0
+  m_Name: VolumetricDisplay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7002533114423015694
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7002533114423015693}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7002533114423015689
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7002533114423015693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 864c1ce868639d54fbd4b0814c6a4331, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  volumeSize: {x: 10, y: 8, z: 10}
+  volumeCenter: {x: 0, y: 0, z: 0}
+  resolutionX: 128
+  resolutionY: 128
+  resolutionZ: 192
+  clearOnStart: 1
+  totalVoxels: 0
+--- !u!114 &7002533114423015688
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7002533114423015693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70a121834cffc8e4eacb821342ea7710, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sliceAxis: 1
+  volume: {fileID: 7002533114423015689}
+  voxelizableLayers:
+    serializedVersion: 2
+    m_Bits: 64
+  sliceRasterShader: {fileID: 4800000, guid: 97e3549b20711e5449fe83e20aa9ff69, type: 3}
+  packingCompute: {fileID: 7200000, guid: b502cb773f77c7443a06902719584b18, type: 3}
+  projectorQuadRenderer: {fileID: 0}
+  packDebugMat: {fileID: 2100000, guid: 126bf03f1668f5e40a470af8ce725f45, type: 2}
+  squareClock: {fileID: 0}
+  syncCamera: {fileID: 0}
+  internalX: 512
+  internalY: 512
+  internalZ: 192
+  projectorX: 912
+  projectorY: 1140
+  rebuildEveryFrame: 0
+  rebuildOnTransformChanges: 1
+  autoRenderOnEnable: 1
+  sliceThicknessWorld: 0.1
+  fallbackColor: {r: 1, g: 1, b: 1, a: 1}
+  sweepUpOnly: 0
+  sweepDownOnly: 0
+  interlaceMode: 1
+  debugSlices: 0
+  debugSliceIndex: 57
+  debugHollowSlices: 0
+  sliceDebugMat: {fileID: 2100000, guid: 552ae04f434ad604ba8c926719354401, type: 2}
+  debugPack: 4
+  useTransformHasChanged: 1
+  useLowerResolutionWhileDirty: 0
+  interactiveX: 320
+  interactiveY: 320
+  interactiveZ: 192
+  settleDelaySeconds: 0.08
+  packToSliceOffset: 0000000030000000600000009000000091000000610000003100000001000000
+--- !u!114 &7002533114423015690
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7002533114423015693}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: def8bdc35fbc7b941bfa7d5c3d06dcf9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

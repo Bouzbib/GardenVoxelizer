@@ -1,0 +1,427 @@
+#pragma kernel ClearPackedIntermediateA
+#pragma kernel ClearPackedIntermediateB
+#pragma kernel ClearPackedIntermediateC
+
+#pragma kernel ClearHollow3D
+#pragma kernel PackSolidSlicesToSurfacePacks
+#pragma kernel SeedHollowFromSlices
+#pragma kernel DilateHollowStep
+#pragma kernel PackHollowToPacks
+#pragma kernel SolidFillColumns
+#pragma kernel CombineFinal
+#pragma kernel ComposeAllProjectorFrames
+#pragma kernel ComposeCurrentProjectorFrame
+
+#define PACK_SLICES 24
+
+int isMechanicalUp;
+int voxelResX, voxelResY, voxelResZ;
+int projResX, projResY;
+int packCount;
+int sweepUpOnly;
+int sweepDownOnly;
+int interlaceMode;
+int maxThicknessVox;
+
+int currentComposePack;
+
+Texture2DArray<float4> solidSliceArray;
+Texture2DArray<float4> hollowSliceArray;
+
+RWTexture3D<uint> packsSolidSurfaceR;
+RWTexture3D<uint> packsSolidSurfaceG;
+RWTexture3D<uint> packsSolidSurfaceB;
+RWTexture3D<uint> packsSolidFilledR;
+RWTexture3D<uint> packsSolidFilledG;
+RWTexture3D<uint> packsSolidFilledB;
+RWTexture3D<uint> packsHollowPackedR;
+RWTexture3D<uint> packsHollowPackedG;
+RWTexture3D<uint> packsHollowPackedB;
+RWTexture3D<uint> hollowSteps;
+RWTexture3D<uint> hollowOccR;
+RWTexture3D<uint> hollowOccG;
+RWTexture3D<uint> hollowOccB;
+RWTexture3D<uint> voxelPacksR;
+RWTexture3D<uint> voxelPacksG;
+RWTexture3D<uint> voxelPacksB;
+RWTexture2DArray<float4> projectorFrames;
+RWTexture2D<float4> projectorFrameCurrent;
+
+
+Texture3D<uint> packsSolidFilledR_Read;
+Texture3D<uint> packsSolidFilledG_Read;
+Texture3D<uint> packsSolidFilledB_Read;
+Texture3D<uint> packsHollowPackedR_Read;
+Texture3D<uint> packsHollowPackedG_Read;
+Texture3D<uint> packsHollowPackedB_Read;
+
+[numthreads(8,8,1)]
+void ClearPackedIntermediateA(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+    uint3 c = uint3(id.x, id.y, id.z);
+    packsSolidSurfaceR[c] = 0u;
+    packsSolidSurfaceG[c] = 0u;
+    packsSolidSurfaceB[c] = 0u;
+    packsSolidFilledR[c] = 0u;
+    packsSolidFilledG[c] = 0u;
+    packsSolidFilledB[c] = 0u;
+}
+
+[numthreads(8,8,1)]
+void ClearPackedIntermediateB(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+    uint3 c = uint3(id.x, id.y, id.z);
+    packsHollowPackedR[c] = 0u;
+    packsHollowPackedG[c] = 0u;
+    packsHollowPackedB[c] = 0u;
+}
+
+[numthreads(8,8,1)]
+void ClearPackedIntermediateC(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+    uint3 c = uint3(id.x, id.y, id.z);
+    voxelPacksR[c] = 0u;
+    voxelPacksG[c] = 0u;
+    voxelPacksB[c] = 0u;
+}
+
+[numthreads(8,8,4)]
+void ClearHollow3D(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)voxelResZ) return;
+    hollowSteps[id] = 0u;
+    hollowOccR[id] = 0u;
+    hollowOccG[id] = 0u;
+    hollowOccB[id] = 0u;
+}
+
+[numthreads(8,8,1)]
+void PackSolidSlicesToSurfacePacks(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+
+    uint x = id.x;
+    uint y = id.y;
+    uint p = id.z;
+    uint bitsR = 0u, bitsG = 0u, bitsB = 0u;
+    uint baseZ = p * PACK_SLICES;
+
+    [unroll]
+    for (uint b = 0u; b < PACK_SLICES; b++)
+    {
+        uint z = baseZ + b;
+        if (z >= (uint)voxelResZ) break;
+        float4 s = solidSliceArray.Load(int4(x, y, z, 0));
+        if (s.r > 0.1) bitsR |= (1u << b);
+        if (s.g > 0.1) bitsG |= (1u << b);
+        if (s.b > 0.1) bitsB |= (1u << b);
+    }
+
+    uint3 c = uint3(x, y, p);
+    packsSolidSurfaceR[c] = bitsR & 0x00FFFFFFu;
+    packsSolidSurfaceG[c] = bitsG & 0x00FFFFFFu;
+    packsSolidSurfaceB[c] = bitsB & 0x00FFFFFFu;
+}
+
+[numthreads(8,8,4)]
+void SeedHollowFromSlices(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)voxelResZ) return;
+    float4 s = hollowSliceArray.Load(int4(id.x, id.y, id.z, 0));
+    uint thickness = max(1u, (uint)round(saturate(s.a) * 255.0));
+    if (s.r > 0.1) { hollowOccR[id] = 1u; InterlockedMax(hollowSteps[id], thickness); }
+    if (s.g > 0.1) { hollowOccG[id] = 1u; InterlockedMax(hollowSteps[id], thickness); }
+    if (s.b > 0.1) { hollowOccB[id] = 1u; InterlockedMax(hollowSteps[id], thickness); }
+}
+
+[numthreads(8,8,4)]
+void DilateHollowStep(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)voxelResZ) return;
+
+    uint s = hollowSteps[id];
+    if (s <= 1u) return;
+
+    uint ns = s - 1u;
+    int3 p = int3(id.xyz);
+    int3 nbrs[6] = {
+        p + int3( 1, 0, 0), p + int3(-1, 0, 0),
+        p + int3( 0, 1, 0), p + int3( 0,-1, 0),
+        p + int3( 0, 0, 1), p + int3( 0, 0,-1)
+    };
+
+    [unroll]
+    for (int i = 0; i < 6; i++)
+    {
+        int3 q = nbrs[i];
+        if (q.x < 0 || q.y < 0 || q.z < 0 || q.x >= voxelResX || q.y >= voxelResY || q.z >= voxelResZ)
+            continue;
+
+        uint3 uq = uint3(q);
+        uint prev;
+        InterlockedMax(hollowSteps[uq], ns, prev);
+        if (prev < ns)
+        {
+            if (hollowOccR[id] != 0u) hollowOccR[uq] = 1u;
+            if (hollowOccG[id] != 0u) hollowOccG[uq] = 1u;
+            if (hollowOccB[id] != 0u) hollowOccB[uq] = 1u;
+        }
+    }
+}
+
+[numthreads(8,8,1)]
+void PackHollowToPacks(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+
+    uint x = id.x, y = id.y, p = id.z;
+    uint bitsR = 0u, bitsG = 0u, bitsB = 0u;
+    uint baseZ = p * PACK_SLICES;
+
+    [unroll]
+    for (uint b = 0; b < PACK_SLICES; b++)
+    {
+        uint z = baseZ + b;
+        if (z >= (uint)voxelResZ) break;
+        uint3 c = uint3(x,y,z);
+        if (hollowOccR[c] != 0u) bitsR |= (1u << b);
+        if (hollowOccG[c] != 0u) bitsG |= (1u << b);
+        if (hollowOccB[c] != 0u) bitsB |= (1u << b);
+    }
+
+    uint3 outC = uint3(x,y,p);
+    packsHollowPackedR[outC] = bitsR & 0x00FFFFFFu;
+    packsHollowPackedG[outC] = bitsG & 0x00FFFFFFu;
+    packsHollowPackedB[outC] = bitsB & 0x00FFFFFFu;
+}
+
+[numthreads(8,8,1)]
+void SolidFillColumns(uint3 id : SV_DispatchThreadID)
+{
+    uint x = id.x;
+    uint y = id.y;
+    if (x >= (uint)voxelResX || y >= (uint)voxelResY) return;
+
+    uint surfR[8], surfG[8], surfB[8];
+    [unroll]
+    for (uint p = 0; p < 8; p++)
+    {
+        uint3 c = uint3(x,y,p);
+        surfR[p] = packsSolidSurfaceR[c] & 0x00FFFFFFu;
+        surfG[p] = packsSolidSurfaceG[c] & 0x00FFFFFFu;
+        surfB[p] = packsSolidSurfaceB[c] & 0x00FFFFFFu;
+    }
+
+    int firstR = -1, lastR = -1;
+    int firstG = -1, lastG = -1;
+    int firstB = -1, lastB = -1;
+
+    for (uint z = 0; z < (uint)voxelResZ; z++)
+    {
+        uint p = z / PACK_SLICES;
+        uint b = z - p * PACK_SLICES;
+        uint m = 1u << b;
+        if ((surfR[p] & m) != 0u) { if (firstR < 0) firstR = (int)z; lastR = (int)z; }
+        if ((surfG[p] & m) != 0u) { if (firstG < 0) firstG = (int)z; lastG = (int)z; }
+        if ((surfB[p] & m) != 0u) { if (firstB < 0) firstB = (int)z; lastB = (int)z; }
+    }
+
+    uint outR[8], outG[8], outB[8];
+    [unroll] for (uint p2 = 0; p2 < 8; p2++) { outR[p2]=0u; outG[p2]=0u; outB[p2]=0u; }
+
+    if (firstR >= 0 && lastR >= firstR)
+        for (int z = firstR; z <= lastR; z++) { uint uz = (uint)z; uint p = uz / PACK_SLICES; uint b = uz - p * PACK_SLICES; outR[p] |= (1u << b); }
+    if (firstG >= 0 && lastG >= firstG)
+        for (int z = firstG; z <= lastG; z++) { uint uz = (uint)z; uint p = uz / PACK_SLICES; uint b = uz - p * PACK_SLICES; outG[p] |= (1u << b); }
+    if (firstB >= 0 && lastB >= firstB)
+        for (int z = firstB; z <= lastB; z++) { uint uz = (uint)z; uint p = uz / PACK_SLICES; uint b = uz - p * PACK_SLICES; outB[p] |= (1u << b); }
+
+    [unroll]
+    for (uint p3 = 0; p3 < 8; p3++)
+    {
+        outR[p3] |= surfR[p3];
+        outG[p3] |= surfG[p3];
+        outB[p3] |= surfB[p3];
+        uint3 c = uint3(x,y,p3);
+        packsSolidFilledR[c] = outR[p3] & 0x00FFFFFFu;
+        packsSolidFilledG[c] = outG[p3] & 0x00FFFFFFu;
+        packsSolidFilledB[c] = outB[p3] & 0x00FFFFFFu;
+    }
+}
+
+[numthreads(8,8,1)]
+void CombineFinal(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)voxelResX || id.y >= (uint)voxelResY || id.z >= (uint)packCount) return;
+    uint3 c = uint3(id.x, id.y, id.z);
+    uint filledR = packsSolidFilledR_Read[c] & 0x00FFFFFFu;
+    uint filledG = packsSolidFilledG_Read[c] & 0x00FFFFFFu;
+    uint filledB = packsSolidFilledB_Read[c] & 0x00FFFFFFu;
+    uint hollowR = packsHollowPackedR_Read[c] & 0x00FFFFFFu;
+    uint hollowG = packsHollowPackedG_Read[c] & 0x00FFFFFFu;
+    uint hollowB = packsHollowPackedB_Read[c] & 0x00FFFFFFu;
+    voxelPacksR[c] = filledR | hollowR;
+    voxelPacksG[c] = filledG | hollowG;
+    voxelPacksB[c] = filledB | hollowB;
+}
+
+static const uint LED_OF_SLOT[24] = {
+  0,1,2,0,1,2,0,1,
+  2,0,1,2,0,1,2,0,
+  1,2,0,1,2,0,1,2
+};
+
+[numthreads(8,8,1)]
+void ComposeAllProjectorFrames(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)projResX || id.y >= (uint)projResY) return;
+
+    uint packIndex = id.z;
+    if (packIndex >= (uint)packCount) return;
+
+    uint vx = (uint)((id.x * (uint)voxelResX) / (uint)projResX);
+    uint vy = (uint)((id.y * (uint)voxelResY) / (uint)projResY);
+
+    bool killAll = (sweepUpOnly != 0) && (sweepDownOnly != 0);
+    bool isUpPack = (packIndex < 4u); //isMechanicalUp > 0;
+    bool isDownPack = !isUpPack;
+
+    if (killAll || (sweepUpOnly != 0 && !isUpPack) || (sweepDownOnly != 0 && !isDownPack))
+    {
+        projectorFrames[uint3(id.x, id.y, packIndex)] = float4(0,0,0,1);
+        return;
+    }
+
+    uint r8 = 0u, g8 = 0u, b8 = 0u;
+
+    [unroll]
+    for (uint i8 = 0u; i8 < 8u; i8++)
+    {
+        uint slotR = i8;
+        uint slotG = 8u + i8;
+        uint slotB = 16u + i8;
+
+        uint slots[3] = { slotR, slotG, slotB };
+        [unroll]
+        for (uint g = 0u; g < 3u; g++)
+        {
+            uint slot = slots[g];
+            uint z_src;
+            if (interlaceMode == 0)
+            {
+                z_src = packIndex * 24u + slot;
+            }
+            else
+            {
+                uint frame = packIndex * 24u + slot;
+                bool upHalf = (frame < 96u);
+                uint localFrame = upHalf ? frame : (frame - 96u);
+                uint t = 2u * localFrame;
+                z_src = upHalf ? t : (191u - t);
+            }
+
+            if (z_src >= (uint)voxelResZ) continue;
+            uint p_src = z_src / 24u;
+            uint b_src = z_src - p_src * 24u;
+            uint mask = 1u << b_src;
+            uint led = LED_OF_SLOT[slot];
+
+            uint word;
+            if (led == 0u) word = voxelPacksR[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+            else if (led == 1u) word = voxelPacksG[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+            else word = voxelPacksB[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+
+            if ((word & mask) != 0u)
+            {
+                if (g == 0u) r8 |= (1u << i8);
+                else if (g == 1u) g8 |= (1u << i8);
+                else b8 |= (1u << i8);
+            }
+        }
+    }
+
+    projectorFrames[uint3(id.x, id.y, packIndex)] = float4(r8/255.0, g8/255.0, b8/255.0, 1.0);
+}
+
+
+[numthreads(8,8,1)]
+void ComposeCurrentProjectorFrame(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)projResX || id.y >= (uint)projResY) return;
+
+    uint packIndex = (uint)currentComposePack;
+    if (packIndex >= (uint)packCount)
+    {
+        projectorFrameCurrent[id.xy] = float4(0,0,0,1);
+        return;
+    }
+
+    uint vx = (uint)((id.x * (uint)voxelResX) / (uint)projResX);
+    uint vy = (uint)((id.y * (uint)voxelResY) / (uint)projResY);
+
+    bool killAll = (sweepUpOnly != 0) && (sweepDownOnly != 0);
+    bool isUpPack = (packIndex < 4u); // isMechanicalUp > 0; //
+    bool isDownPack = !isUpPack;
+
+    if (killAll || (sweepUpOnly != 0 && !isUpPack) || (sweepDownOnly != 0 && !isDownPack))
+    {
+        projectorFrameCurrent[id.xy] = float4(0,0,0,1);
+        return;
+    }
+
+    uint r8 = 0u, g8 = 0u, b8 = 0u;
+
+    [unroll]
+    for (uint i8 = 0u; i8 < 8u; i8++)
+    {
+        uint slotR = i8;
+        uint slotG = 8u + i8;
+        uint slotB = 16u + i8;
+
+        uint slots[3] = { slotR, slotG, slotB };
+
+        [unroll]
+        for (uint g = 0u; g < 3u; g++)
+        {
+            uint slot = slots[g];
+            uint z_src;
+
+            if (interlaceMode == 0)
+            {
+                z_src = packIndex * 24u + slot;
+            }
+            else
+            {
+                uint frame = packIndex * 24u + slot;
+                bool upHalf = (frame < 96u);
+                uint localFrame = upHalf ? frame : (frame - 96u);
+                uint t = 2u * localFrame;
+                z_src = upHalf ? t : (191u - t);
+            }
+
+            if (z_src >= (uint)voxelResZ) continue;
+
+            uint p_src = z_src / 24u;
+            uint b_src = z_src - p_src * 24u;
+            uint mask = 1u << b_src;
+            uint led = LED_OF_SLOT[slot];
+
+            uint word;
+            if (led == 0u) word = voxelPacksR[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+            else if (led == 1u) word = voxelPacksG[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+            else word = voxelPacksB[uint3(vx, vy, p_src)] & 0x00FFFFFFu;
+
+            if ((word & mask) != 0u)
+            {
+                if (g == 0u) r8 |= (1u << i8);
+                else if (g == 1u) g8 |= (1u << i8);
+                else b8 |= (1u << i8);
+            }
+        }
+    }
+
+    projectorFrameCurrent[id.xy] = float4(r8 / 255.0, g8 / 255.0, b8 / 255.0, 1.0);
+}

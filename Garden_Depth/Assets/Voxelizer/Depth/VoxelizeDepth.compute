@@ -1,0 +1,118 @@
+#pragma kernel CSMain
+
+RWTexture3D<float4> VoxelColorVolume;
+Texture2D<float> FrontDepthTex;
+Texture2D<float> BackDepthTex;
+Texture2D<float4> SurfaceColorTex;
+
+cbuffer Params
+{
+    float3 VolumeMin;
+    float3 VolumeSize;
+    uint3 VolumeResolution;
+
+    int SliceAxis;          // 0=X,1=Y,2=Z
+    int VoxelMode;          // 0=solid,1=hollow
+    float ShellThickness;   // world units
+    float4 ObjectColor;     // fallback only
+    float ColorWriteThreshold;
+
+    int WriteNeighborSlices;   // 0/1
+};
+
+float AxisValue(float3 v, int axis)
+{
+    return (axis == 0) ? v.x : ((axis == 1) ? v.y : v.z);
+}
+
+void WriteVoxel(uint3 p, float3 c)
+{
+    if (p.x >= VolumeResolution.x || p.y >= VolumeResolution.y || p.z >= VolumeResolution.z)
+        return;
+
+    float4 prev = VoxelColorVolume[p];
+    VoxelColorVolume[p] = float4(max(prev.rgb, c), 1.0);
+}
+
+[numthreads(8,8,4)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= VolumeResolution.x || id.y >= VolumeResolution.y || id.z >= VolumeResolution.z)
+        return;
+
+    int2 pixel = int2(id.x, id.y);
+    uint slice = id.z;
+
+    float d0 = FrontDepthTex.Load(int3(pixel, 0));
+    float d1 = BackDepthTex.Load(int3(pixel, 0));
+
+    const float EPS = 1e-5;
+
+    if (d0 <= EPS && d1 <= EPS)
+        return;
+
+    float front01 = min(d0, d1);
+    float back01  = max(d0, d1);
+
+    if (back01 <= front01 + EPS)
+        return;
+
+    float axisMin   = AxisValue(VolumeMin, SliceAxis);
+    float axisSize  = AxisValue(VolumeSize, SliceAxis);
+    float sliceStep = axisSize / max(1u, VolumeResolution.z);
+
+    float frontPos = axisMin + front01 * axisSize;
+    float backPos  = axisMin + back01  * axisSize;
+    float slicePos = axisMin + (slice + 0.5) * sliceStep;
+
+    float halfStep = 0.5 * sliceStep;
+
+    bool inside = (slicePos >= frontPos - halfStep) &&
+                  (slicePos <= backPos  + halfStep);
+
+    if (!inside)
+        return;
+
+    float shell = max(ShellThickness, sliceStep);
+    bool nearFront = abs(slicePos - frontPos) <= (shell + halfStep);
+    bool nearBack  = abs(slicePos - backPos ) <= (shell + halfStep);
+
+    bool shouldWrite = false;
+
+    if (VoxelMode == 0) // solid
+        shouldWrite = true;
+    else                // hollow
+        shouldWrite = nearFront || nearBack;
+
+    if (!shouldWrite)
+        return;
+
+    // Primary color source: captured surface color
+    float4 surf = SurfaceColorTex.Load(int3(pixel, 0));
+    float3 sampled = saturate(surf.rgb);
+
+    // Use a single intensity test instead of per-channel threshold.
+    // This avoids throwing away valid dark reds/greens and reduces bad fallback.
+    float sampledMax = max(sampled.r, max(sampled.g, sampled.b));
+
+    float3 c = sampled;
+    if (sampledMax <= ColorWriteThreshold)
+    {
+        c = saturate(ObjectColor.rgb); // fallback only
+    }
+
+    // Optional: discard very dark final colors
+    float finalMax = max(c.r, max(c.g, c.b));
+    if (finalMax <= ColorWriteThreshold)
+        return;
+
+    WriteVoxel(id, c);
+
+    if (WriteNeighborSlices != 0)
+    {
+        if (slice > 0)
+            WriteVoxel(uint3(id.x, id.y, slice - 1), c);
+        if (slice + 1 < VolumeResolution.z)
+            WriteVoxel(uint3(id.x, id.y, slice + 1), c);
+    }
+}

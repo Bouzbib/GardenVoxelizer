@@ -1,0 +1,152 @@
+#pragma kernel Pack24Color
+#pragma kernel ComposeCurrentProjectorFrame
+
+Texture3D<float4> VoxelColorVolume;
+
+RWTexture2D<float4> PackedTex;
+RWTexture2D<float4> projectorFrameCurrent;
+
+
+cbuffer ComposeParams
+{
+    int voxelResX;
+    int voxelResY;
+    int voxelResZ;
+    int projResX;
+    int projResY;
+    int currentComposePack;
+    int packCount;
+    int sweepUpOnly;
+    int sweepDownOnly;
+    int interlaceMode;
+}
+
+cbuffer Params
+{
+    int SliceOffset;
+    int VolumeDepth;
+    int Interlaced;
+    int SweepDir;       // 1 = up, 0 = down
+    int SweepUpOnly;
+    int SweepDownOnly;
+    float ColorThreshold;
+};
+
+// IMPORTANT:
+// 
+// Meaning:
+// 0 = use voxel RED channel
+// 1 = use voxel GREEN channel
+// 2 = use voxel BLUE channel
+//
+// Placeholder below is identity RGB grouping:
+// slots  0..7  -> R
+// slots  8..15 -> G
+// slots 16..23 -> B
+static const uint LED_OF_SLOT[24] = {
+  0,1,2,0,1,2,0,1,
+  2,0,1,2,0,1,2,0,
+  1,2,0,1,2,0,1,2
+};
+
+[numthreads(8,8,1)]
+void Pack24Color(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    PackedTex.GetDimensions(width, height);
+
+    if (id.x >= width || id.y >= height)
+        return;
+
+    uint2 xy = id.xy;
+
+    bool killAll = (SweepUpOnly != 0) && (SweepDownOnly != 0);
+    uint parity = (SweepDir > 0) ? 0u : 1u;
+
+    if (killAll)
+    {
+        PackedTex[xy] = float4(0,0,0,1);
+        return;
+    }
+
+    uint r8 = 0u;
+    uint g8 = 0u;
+    uint b8 = 0u;
+
+    [unroll]
+    for (uint i8 = 0u; i8 < 8u; i8++)
+    {
+        uint slotR = i8;
+        uint slotG = 8u + i8;
+        uint slotB = 16u + i8;
+
+        uint slots[3] = { slotR, slotG, slotB };
+
+        [unroll]
+        for (uint g = 0u; g < 3u; g++)
+        {
+            uint slot = slots[g];
+            uint z_src;
+
+            if (Interlaced == 0)
+            {
+                z_src = (uint)SliceOffset + slot;
+            }
+            else
+            {
+                z_src = (uint)SliceOffset + slot * 2u + parity;
+            }
+
+            if (z_src >= (uint)VolumeDepth)
+                continue;
+
+            float4 vox = VoxelColorVolume.Load(int4(xy, z_src, 0));
+
+            uint led = LED_OF_SLOT[slot];
+            bool on = false;
+
+            if      (led == 0u) on = (vox.r > ColorThreshold);
+            else if (led == 1u) on = (vox.g > ColorThreshold);
+            else                on = (vox.b > ColorThreshold);
+
+            if (!on)
+                continue;
+
+            if      (g == 0u) r8 |= (1u << i8);
+            else if (g == 1u) g8 |= (1u << i8);
+            else              b8 |= (1u << i8);
+        }
+    }
+
+    PackedTex[xy] = float4(r8 / 255.0, g8 / 255.0, b8 / 255.0, 1.0);
+}
+
+[numthreads(8,8,1)]
+void ComposeCurrentProjectorFrame(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= (uint)projResX || id.y >= (uint)projResY)
+        return;
+
+    uint packIndex = (uint)currentComposePack;
+    if (packIndex >= (uint)packCount)
+    {
+        projectorFrameCurrent[id.xy] = float4(0,0,0,1);
+        return;
+    }
+
+    bool killAll = (sweepUpOnly != 0) && (sweepDownOnly != 0);
+    bool isUpPack = packIndex < 4;//SweepDir > 0;
+    bool isDownPack = !isUpPack;
+
+    if (killAll || (sweepUpOnly != 0 && !isUpPack) || (sweepDownOnly != 0 && !isDownPack))
+    {
+        projectorFrameCurrent[id.xy] = float4(0,0,0,1);
+        return;
+    }
+
+    uint vx = (uint)((id.x * (uint)voxelResX) / (uint)projResX);
+    uint vy = (uint)((id.y * (uint)voxelResY) / (uint)projResY);
+
+    float4 p = PackedTex[uint2(vx, vy)];
+    projectorFrameCurrent[id.xy] = float4(p.rgb, 1.0);
+}

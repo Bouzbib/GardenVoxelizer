@@ -29,7 +29,7 @@ public class BloomOrangeFlower : MonoBehaviour
             if(this.transform.localScale.x<targetSize.x)
             {
                 this.transform.localScale = this.transform.localScale * growFactor;
-                Debug.Log("GROWING");
+                // Debug.Log("GROWING");
                 // Debug.Log("deltatime: " + Time.deltaTime*growFactor);
             }
             else
@@ -51,10 +51,10 @@ public class BloomOrangeFlower : MonoBehaviour
 
     IEnumerator Disappear()
     {
-        Debug.Log("I'm waiting");
+        // Debug.Log("I'm waiting");
         yield return new WaitForSeconds(delay);
         Destroy(this.gameObject);
-        Debug.Log("6 seconds have passed");
+        // Debug.Log("6 seconds have passed");
 
     }
 }

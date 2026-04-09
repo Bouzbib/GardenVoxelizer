@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class SpawnOnCollition : MonoBehaviour
 {
-    private GameObject garden;
+    public GameObject garden;
     public GameObject[] flowerTypes;
     public GameObject ObjectToSpawn;
     private Vector2 posOnPlane;
@@ -21,8 +21,11 @@ public class SpawnOnCollition : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        
-        garden = GameObject.Find("Garden");
+        if(garden == null)
+        {
+            garden = GameObject.Find("Garden");
+        }
+        garden.SetActive(true);
         flowerTypes= new GameObject[garden.transform.childCount];
         this.GetComponent<MeshRenderer>().enabled=false;
         
@@ -31,8 +34,7 @@ public class SpawnOnCollition : MonoBehaviour
             flowerTypes[i]=garden.transform.GetChild(i).gameObject;
         }
         garden.SetActive(false);
-        fingerObject = GameObject.FindGameObjectWithTag("InteractiveObject");
-
+    objectCount = 0;
     }
 
     // Update is called once per frame
@@ -43,9 +45,12 @@ public class SpawnOnCollition : MonoBehaviour
         {
             fingerObject = GameObject.FindGameObjectWithTag("InteractiveObject");
         }
+        else
+        {
+            Vector2 posFinger = new Vector2(fingerObject.transform.position.x, fingerObject.transform.position.z);
+            distanceMeasured = Vector2.Distance(posOnPlane, posFinger);
+        }
         
-        Vector2 posFinger = new Vector2(fingerObject.transform.position.x, fingerObject.transform.position.z);
-        distanceMeasured = Vector2.Distance(posOnPlane, posFinger);
         // Debug.Log(distanceMeasured);
     }
     void OnCollisionEnter(Collision collision)
@@ -64,14 +69,14 @@ public class SpawnOnCollition : MonoBehaviour
                     {
                         numObjectToLoad = collisionNumber%flowerTypes.Length;
                     }
-                    Debug.Log("Entering here");
+                    // Debug.Log("Entering here");
                     isTouched=true;
                     StartCoroutine(DistanceTime());
                     ContactPoint contact = collision.contacts[0];
                     spawnPosition= new Vector3 (contact.point.x, -3.5f, contact.point.z);
                     ObjectToSpawn=flowerTypes[numObjectToLoad];
                     // ObjectToSpawn=flowerTypes[collisionNumber%flowerTypes.Length];
-                    GameObject newFlower = (GameObject)Instantiate(ObjectToSpawn, spawnPosition, Quaternion.identity);
+                    GameObject newFlower = (GameObject)Instantiate(ObjectToSpawn, spawnPosition, Quaternion.identity, this.transform.parent.transform);
                     newFlower.GetComponent<BloomOrangeFlower>().targetSize = Vector3.Scale(newFlower.transform.localScale, garden.transform.localScale);
                     newFlower.transform.localScale = newFlower.GetComponent<BloomOrangeFlower>().targetSize/5.4f;
                     posOnPlane= new Vector2 (spawnPosition.x, spawnPosition.z);
@@ -98,7 +103,7 @@ public class SpawnOnCollition : MonoBehaviour
         
         
         yield return new WaitUntil(() => (distanceMeasured > threshold));
-        Debug.Log("turningoff touched");
+        // Debug.Log("turningoff touched");
         // Debug.Log(distanceMeasured);
         isTouched = false;
         objectCount = 0;

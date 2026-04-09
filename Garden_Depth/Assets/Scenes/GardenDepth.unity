@@ -738,6 +738,10 @@ PrefabInstance:
       propertyPath: squareClock
       value: 
       objectReference: {fileID: 2086626051}
+    - target: {fileID: 1880039133230142435, guid: 501cac58a04cef24baa23bc698214b07, type: 3}
+      propertyPath: volumeSize.y
+      value: 8.03
+      objectReference: {fileID: 0}
     - target: {fileID: 1880039133230142460, guid: 501cac58a04cef24baa23bc698214b07, type: 3}
       propertyPath: m_RootOrder
       value: 14
@@ -1257,8 +1261,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2215984256808786995}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.6, y: -0.97, z: 0}
-  m_LocalScale: {x: 4.46, y: 2.98, z: 4.19}
+  m_LocalPosition: {x: -0.6, y: -0.79, z: 0}
+  m_LocalScale: {x: 2.9, y: 2.98, z: 2.9}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1820003236}
@@ -1534,6 +1538,22 @@ PrefabInstance:
     - target: {fileID: 4968432535656398098, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
       propertyPath: m_Name
       value: Plane
+      objectReference: {fileID: 0}
+    - target: {fileID: 4968432535656398100, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
+      propertyPath: m_Size.x
+      value: 9.991898
+      objectReference: {fileID: 0}
+    - target: {fileID: 4968432535656398100, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
+      propertyPath: m_Size.z
+      value: 9.829052
+      objectReference: {fileID: 0}
+    - target: {fileID: 4968432535656398100, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
+      propertyPath: m_Center.x
+      value: 0.010781527
+      objectReference: {fileID: 0}
+    - target: {fileID: 4968432535656398100, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
+      propertyPath: m_Center.z
+      value: 0.008194923
       objectReference: {fileID: 0}
     - target: {fileID: 4968432535656398102, guid: b94891095cb03bd4ba9428a875d98d0b, type: 3}
       propertyPath: m_RootOrder

@@ -1,0 +1,139 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+/* This is the grasping and rotating script */ 
+// [RequireComponent(typeof(VXDynamicComponent))]
+// [RequireComponent(typeof(CorrectionMesh))]
+// [RequireComponent(typeof(RemoveVXComponent))]
+public class CollideAndFollow : MonoBehaviour
+{
+	public bool caught;
+
+	public bool index, middle, thumb, recordPos;
+
+	private GameObject indexObject, thumbObject;
+    private Vector3 vectorToFollow;
+    private int state;
+    private Vector3 originalPos;
+    private Color[] originalColor;
+
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        this.GetComponent<Collider>().isTrigger = true;
+        // I made the collider * 1.1 in the inspector window.
+        originalPos = this.transform.localPosition;
+        caught = true;
+        state = 1;
+        originalColor = new Color[this.GetComponent<Renderer>().materials.Length];
+		for(int i = 0; i < this.GetComponent<Renderer>().materials.Length; i++)
+		{
+			originalColor[i] = this.GetComponent<Renderer>().materials[i].color;
+		}
+		
+        // this.gameObject.AddComponent<VXDynamicComponent>();
+		
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        switch(state)
+        {
+            case 1:
+                    
+                    indexObject = GameObject.Find("1_index_first");
+                    thumbObject = GameObject.Find("1_thumb_first");
+					state = 2;
+                    break;
+
+                case 2:
+                
+	                if(index && thumb)
+			        {
+			            caught = true;
+
+						for(int i = 0; i < this.GetComponent<Renderer>().materials.Length; i++)
+						{
+							this.GetComponent<Renderer>().materials[i].color = Color.green;
+						}
+			        }
+			        else
+			        {
+			            caught = false;
+			            recordPos = false;
+						for(int i = 0; i < this.GetComponent<Renderer>().materials.Length; i++)
+						{
+							this.GetComponent<Renderer>().materials[i].color = originalColor[i];
+						}
+                                                // this.transform.position = originalPos;
+			        }
+
+			        if(caught)
+			        {
+			        	if(!recordPos)
+			        	{
+			        		vectorToFollow = (indexObject.transform.position - thumbObject.transform.position).normalized;
+				        	// this.transform.parent = indexObject.transform;
+				        	recordPos = true;
+			        	}
+			        	else
+			        	{
+			        		this.transform.eulerAngles = new Vector3(this.transform.eulerAngles.x, this.transform.eulerAngles.y + Vector3.SignedAngle(vectorToFollow, (indexObject.transform.position - thumbObject.transform.position), Vector3.up), this.transform.eulerAngles.z);
+		          			vectorToFollow = (indexObject.transform.position - thumbObject.transform.position);
+			          	    // this.transform.position = originalPos;
+			        	}
+			        	
+			        }
+			        else
+			        {
+			        	// this.transform.parent = GameObject.FindObjectOfType<CollideAndMove>().transform;
+			        }
+                	break;
+
+        }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {    	
+        if(other.GetComponent<Collider>().name.Contains("1_index_tip") || other.GetComponent<Collider>().name.Contains("1_index_third"))
+    	{
+    		index = true;
+    	}
+
+     //    if(other.GetComponent<Collider>().name.Contains("1_middle_tip") || other.GetComponent<Collider>().name.Contains("1_middle_third"))
+    	// {
+    	// 	middle = true;
+    	// }
+
+        if(other.GetComponent<Collider>().name.Contains("1_thumb_tip") || other.GetComponent<Collider>().name.Contains("1_thumb_third"))
+    	{
+    		thumb = true;
+    	}
+
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+    	if(other.GetComponent<Collider>().name.Contains("1_index_tip") || other.GetComponent<Collider>().name.Contains("1_index_third"))
+    	{
+    		index = false;
+    	}
+
+     //    if(other.GetComponent<Collider>().name.Contains("1_middle_tip") || other.GetComponent<Collider>().name.Contains("1_middle_third"))
+    	// {
+    	// 	middle = false;
+    	// }
+
+        if(other.GetComponent<Collider>().name.Contains("1_thumb_tip") || other.GetComponent<Collider>().name.Contains("1_thumb_third"))
+    	{
+    		thumb = false;
+    	}
+    }
+
+   
+
+}

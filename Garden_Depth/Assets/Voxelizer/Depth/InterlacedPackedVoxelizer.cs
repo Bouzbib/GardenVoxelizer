@@ -198,6 +198,7 @@ public class InterlacedPackedVoxelizer : MonoBehaviour
 
 	    if (volumeDirty)
 	    {
+	    	voxelObjects = new List<VoxelizableObject>(FindObjectsOfType<VoxelizableObject>());
 	        RebuildVoxelVolume();
 	        volumeDirty = false;
 	    }
